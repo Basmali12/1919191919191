@@ -4,20 +4,129 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>كي للاستثمار | Key Invest VIP</title>
-    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700&display=swap');
+
+        :root {
+            --primary: #5b247a;
+            --accent: #ff9800;
+            --bg: #f3f4f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding-bottom: 90px;
+            color: var(--text);
+            overflow-x: hidden;
+            user-select: none; /* حماية بسيطة لمنع نسخ النصوص */
+        }
+
+        /* === حل مشكلة التبويبات نهائياً === */
+        .tab-content { display: none !important; animation: fadeIn 0.4s ease-in-out; }
+        .tab-content.active { display: block !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* الهيدر */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary), #3a0ca3);
+            padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            color: white; border-radius: 0 0 20px 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .avatar-circle { width: 45px; height: 45px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-left: 10px; }
+
+        /* بطاقة الرصيد والانميشن */
+        .balance-card {
+            background: linear-gradient(45deg, #1e1e2e, #4a148c);
+            color: white; padding: 25px; border-radius: 20px;
+            text-align: center; margin: 20px; position: relative; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(74, 20, 140, 0.4);
+        }
+        
+        /* انميشن العداد (النبض) */
+        .timer-anim {
+            background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 30px;
+            display: inline-block; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1);
+            animation: pulseGlow 2s infinite;
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+        }
+        #dailyTimer { font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.2rem; letter-spacing: 2px; color: var(--accent); }
+
+        .quick-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: center; }
+        .action-icon { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 15px; border-radius: 10px; font-size: 0.8rem; cursor: pointer; }
+
+        /* زر التليجرام */
+        .telegram-btn-large {
+            display: block; text-decoration: none; background: #0088cc; color: white;
+            padding: 15px; border-radius: 12px; text-align: center; margin: 20px;
+            font-weight: bold; box-shadow: 0 5px 15px rgba(0, 136, 204, 0.3);
+            transition: transform 0.2s;
+        }
+        .telegram-btn-large:active { transform: scale(0.98); }
+
+        /* الباقات والمتجر */
+        .plan-box { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #eee; text-align: center; position: relative; }
+        .featured-plan { border: 2px solid var(--accent); transform: scale(1.02); }
+        .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; }
+        
+        .store-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px; }
+        .store-item { background: white; padding: 15px; border-radius: 15px; text-align: center; box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
+        .store-img { height: 80px; width: 100%; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-bottom: 10px; }
+        .store-img.asia { background: #d32f2f; } .store-img.zain { background: #000; } .store-img.pubg { background: #ff9800; }
+
+        /* رابط الدعوة */
+        .link-box { display: flex; gap: 5px; margin-top: 10px; }
+        .link-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #eee; text-align: center; }
+        .link-box button { background: var(--primary); color: white; border: none; padding: 0 15px; border-radius: 8px; cursor: pointer; }
+
+        /* القوائم والناف بار */
+        button { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--primary); color: white; cursor: pointer; font-family: inherit; }
+        .menu-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-bottom: 2px solid #f0f0f0; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -5px 10px rgba(0,0,0,0.05); z-index: 999; }
+        .nav-item { text-align: center; color: #bbb; flex: 1; font-size: 0.8rem; cursor: pointer; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { font-size: 1.4rem; margin-bottom: 4px; display: block; }
+        .floating-home { background: var(--primary); width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; position: absolute; top: -30px; left: 50%; transform: translateX(-50%); border: 4px solid var(--bg); box-shadow: 0 5px 15px rgba(91, 36, 122, 0.4); }
+
+        /* المودال (تسجيل الدخول) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; width: 85%; border-radius: 20px; text-align: center; }
+        
+        /* أزرار التسجيل الجديدة (كما طلبت) */
+        .google-btn { background: #db4437; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .skip-btn { background: transparent; color: #777; border: 1px solid #ccc; }
+        
+        /* رسائل قريباً */
+        .coming-soon-box { text-align: center; padding: 50px 20px; color: #999; }
+        .coming-soon-box i { font-size: 4rem; margin-bottom: 20px; color: #ddd; }
+    </style>
 </head>
 <body>
 
     <div id="loginModal" class="modal-overlay">
         <div class="modal-content">
-            <div class="logo-area">💎</div>
-            <h2>تسجيل الدخول</h2>
-            <p>مرحباً بك في نظام كي للاستثمار</p>
-            <input type="text" id="regName" placeholder="الاسم الثلاثي">
-            <input type="password" id="regPass" placeholder="كلمة المرور">
-            <button onclick="registerUser()">إنشاء حساب</button>
+            <div style="font-size:3rem; margin-bottom:10px;">💎</div>
+            <h2>مرحباً بك</h2>
+            <p>سجل الدخول للمتابعة</p>
+            
+            <button onclick="loginGoogle()" class="google-btn">
+                <i class="fab fa-google"></i> تسجيل الدخول عبر Google
+            </button>
+            
+            <button onclick="loginGuest()" class="skip-btn">
+                تخطي (معاينة كزائر)
+            </button>
         </div>
     </div>
 
@@ -25,12 +134,12 @@
         <div class="user-info-header">
             <div class="avatar-circle"><i class="fas fa-user-astronaut"></i></div>
             <div>
-                <span id="headerName" style="font-weight:bold;">ضيف</span>
+                <span id="headerName" style="font-weight:bold;">زائر</span>
                 <span style="font-size:0.7rem; display:block; opacity:0.8;">ID: <span id="userId">---</span></span>
             </div>
         </div>
         <div class="header-actions">
-            <i class="fas fa-bell" onclick="alert('لا توجد إشعارات جديدة')"></i>
+            <i class="fas fa-bell" onclick="alert('لا توجد إشعارات')"></i>
         </div>
     </div>
 
@@ -38,7 +147,6 @@
         
         <section id="home" class="tab-content active">
             <div class="balance-card gsap-fade">
-                <div class="glow-effect"></div>
                 <h3>الرصيد الكلي</h3>
                 <h1 id="walletBalance">0 IQD</h1>
                 
@@ -50,12 +158,8 @@
                 </div>
 
                 <div class="quick-actions">
-                    <button onclick="showComingSoon()" class="action-icon">
-                        <i class="fas fa-gift"></i> هدية يومية
-                    </button>
-                    <button onclick="showComingSoon()" class="action-icon">
-                        <i class="fas fa-dharmachakra"></i> عجلة الحظ
-                    </button>
+                    <button onclick="showComingSoon()" class="action-icon"><i class="fas fa-gift"></i> هدية يومية</button>
+                    <button onclick="showComingSoon()" class="action-icon"><i class="fas fa-dharmachakra"></i> عجلة الحظ</button>
                 </div>
             </div>
 
@@ -78,37 +182,22 @@
         <section id="store" class="tab-content">
             <div class="section-title">المتجر الرقمي</div>
             <div class="store-grid">
-                <div class="store-item gsap-card">
-                    <div class="store-img asia">AsiaCell</div>
-                    <h4>رصيد آسيا</h4>
-                    <button onclick="showComingSoon()">شراء (قريباً)</button>
-                </div>
-                <div class="store-item gsap-card">
-                    <div class="store-img zain">Zain</div>
-                    <h4>رصيد زين</h4>
-                    <button onclick="showComingSoon()">شراء (قريباً)</button>
-                </div>
-                <div class="store-item gsap-card">
-                    <div class="store-img pubg">PUBG</div>
-                    <h4>شدات بوبجي</h4>
-                    <button onclick="showComingSoon()">شراء (قريباً)</button>
-                </div>
+                <div class="store-item"><div class="store-img asia">AsiaCell</div><h4>رصيد آسيا</h4><button onclick="showComingSoon()">شراء (قريباً)</button></div>
+                <div class="store-item"><div class="store-img zain">Zain</div><h4>رصيد زين</h4><button onclick="showComingSoon()">شراء (قريباً)</button></div>
+                <div class="store-item"><div class="store-img pubg">PUBG</div><h4>شدات بوبجي</h4><button onclick="showComingSoon()">شراء (قريباً)</button></div>
             </div>
         </section>
 
         <section id="team" class="tab-content">
             <div class="section-title">نظام الدعوات</div>
-            <div class="invite-card">
+            <div class="plan-box">
                 <h3>رابط الدعوة الخاص بك</h3>
-                <p>شارك الرابط واربح المكافآت</p>
-                
                 <div class="link-box">
-                    <input type="text" id="myInviteLink" readonly value="جاري التحميل...">
-                    <button onclick="copyInviteLink()"><i class="fas fa-copy"></i> نسخ</button>
+                    <input type="text" id="myInviteLink" readonly value="Loading...">
+                    <button onclick="copyInviteLink()"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
-            
-            <div class="team-stats">
+            <div style="text-align:center; margin-top:20px;">
                 <p>عدد الفريق: <span id="teamCount">0</span></p>
             </div>
         </section>
@@ -131,7 +220,7 @@
 
             <div class="requests-list">
                 <h3>سجل اشتراكاتي</h3>
-                <ul id="myPlansList"></ul>
+                <ul id="myPlansList" style="list-style:none; padding:0;"></ul>
             </div>
         </section>
         
@@ -146,23 +235,157 @@
     </main>
 
     <nav class="bottom-nav">
-        <div class="nav-item" onclick="switchTab('profile')">
-            <i class="fas fa-user"></i> <span>حسابي</span>
-        </div>
-        <div class="nav-item" onclick="switchTab('team')">
-            <i class="fas fa-users"></i> <span>الفريق</span>
-        </div>
-        <div class="nav-item active center-btn" onclick="switchTab('home')">
-            <div class="floating-home"><i class="fas fa-home"></i></div>
-        </div>
-        <div class="nav-item" onclick="switchTab('store')">
-            <i class="fas fa-shopping-bag"></i> <span>المتجر</span>
-        </div>
-        <div class="nav-item" onclick="switchTab('agents')">
-            <i class="fas fa-map-marker-alt"></i> <span>الوكلاء</span>
-        </div>
+        <div class="nav-item" onclick="switchTab('profile')"><i class="fas fa-user"></i> <span>حسابي</span></div>
+        <div class="nav-item" onclick="switchTab('team')"><i class="fas fa-users"></i> <span>الفريق</span></div>
+        <div class="nav-item active center-btn" onclick="switchTab('home')"><div class="floating-home"><i class="fas fa-home"></i></div></div>
+        <div class="nav-item" onclick="switchTab('store')"><i class="fas fa-shopping-bag"></i> <span>المتجر</span></div>
+        <div class="nav-item" onclick="switchTab('agents')"><i class="fas fa-map-marker-alt"></i> <span>الوكلاء</span></div>
     </nav>
 
-    <script src="script.js"></script>
+    <script>
+        /* *** نظام الحماية (Anti-Cheat) لمنع التلاعب بالوقت *** */
+        const SECURITY_KEY = 'secure_check_v1';
+        function checkTimeIntegrity() {
+            const now = Date.now();
+            const lastTime = localStorage.getItem(SECURITY_KEY);
+            if (lastTime && now < parseInt(lastTime)) {
+                document.body.innerHTML = '<h1 style="color:red;text-align:center;margin-top:50px;">🚫 خطأ في الوقت! يرجى ضبط الساعة.</h1>';
+                throw new Error("Time Error");
+            }
+            localStorage.setItem(SECURITY_KEY, now);
+        }
+        setInterval(checkTimeIntegrity, 2000);
+
+        /* ================= المتغيرات ================= */
+        let userData = JSON.parse(localStorage.getItem('keyAppUser_v6')) || {
+            isRegistered: false,
+            name: 'زائر',
+            id: 'ID' + Math.floor(10000 + Math.random() * 90000),
+            balance: 0,
+            plans: []
+        };
+
+        /* ================= عند التحميل ================= */
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLogin();
+            updateUI();
+            generateInviteLink();
+            startLiveTimer();
+        });
+
+        /* ================= دوال تسجيل الدخول (النسخة القديمة) ================= */
+        function checkLogin() {
+            const modal = document.getElementById('loginModal');
+            if (!userData.isRegistered) {
+                modal.style.display = 'flex';
+            } else {
+                modal.style.display = 'none';
+                document.getElementById('headerName').innerText = userData.name;
+                document.getElementById('userId').innerText = userData.id;
+            }
+        }
+
+        function loginGoogle() {
+            // محاكاة تسجيل الدخول بجوجل
+            userData.isRegistered = true;
+            userData.name = "مستخدم Google"; // أو يمكنك وضع كود يطلب الاسم
+            saveData();
+            checkLogin();
+            alert("تم تسجيل الدخول بنجاح عبر حساب Google (محاكاة)");
+        }
+
+        function loginGuest() {
+            userData.isRegistered = true;
+            userData.name = "زائر";
+            saveData();
+            checkLogin();
+        }
+
+        function logout() {
+            if(confirm('تسجيل خروج؟')) {
+                localStorage.removeItem('keyAppUser_v6');
+                location.reload();
+            }
+        }
+
+        /* ================= التنقل بين التبويبات ================= */
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.style.display = 'none';
+                el.classList.remove('active');
+            });
+            const target = document.getElementById(tabId);
+            if(target) {
+                target.style.display = 'block';
+                target.classList.add('active');
+                gsap.fromTo(target, {opacity: 0, y: 10}, {opacity: 1, y: 0, duration: 0.3});
+            }
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
+        }
+
+        /* ================= الوظائف ================= */
+        function showComingSoon() {
+            alert('⏳ قريباً.. هذه الميزة قيد الصيانة.');
+        }
+
+        function showDepositInfo() {
+            // حذف اليوزر القديم واضافة الجديد
+            alert('لشحن الرصيد يرجى مراسلة الوكيل المعتمد:\n\nUser: @an_ln2\n\nأرسل صورة التحويل والآيدي.');
+            window.open('https://t.me/an_ln2', '_blank');
+        }
+
+        function generateInviteLink() {
+            const linkInput = document.getElementById('myInviteLink');
+            if(linkInput) linkInput.value = `https://key-invest.app/join?ref=${userData.id}`;
+        }
+
+        function copyInviteLink() {
+            const copyText = document.getElementById("myInviteLink");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value);
+            alert("✅ تم نسخ الرابط");
+        }
+
+        function requestPlan(type, price) {
+            if(confirm('تأكيد الطلب؟')) {
+                userData.plans.push({type: type, status: 'pending'});
+                saveData();
+                updateUI();
+                alert('تم إرسال الطلب للمراجعة.');
+                switchTab('profile');
+            }
+        }
+
+        function startLiveTimer() {
+            const timerElement = document.getElementById('dailyTimer');
+            setInterval(() => {
+                const now = new Date();
+                const endOfDay = new Date();
+                endOfDay.setHours(23, 59, 59, 999);
+                const diff = endOfDay - now;
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                if(timerElement) timerElement.innerText = `${hours}:${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        function updateUI() {
+            document.getElementById('walletBalance').innerText = userData.balance.toLocaleString() + ' IQD';
+            document.getElementById('teamCount').innerText = Math.floor(Math.random() * 5); 
+            const list = document.getElementById('myPlansList');
+            list.innerHTML = '';
+            if(userData.plans.length === 0) list.innerHTML = '<p style="text-align:center;color:#999">لا توجد اشتراكات</p>';
+            userData.plans.forEach(p => {
+                list.innerHTML += `<li class="menu-item" style="justify-content:space-between"><span>${p.type}</span> <span style="color:orange">قيد المراجعة</span></li>`;
+            });
+        }
+
+        function saveData() {
+            localStorage.setItem('keyAppUser_v6', JSON.stringify(userData));
+        }
+    </script>
 </body>
 </html>
