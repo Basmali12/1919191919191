@@ -1,270 +1,216 @@
 /* =========================================
-   ملف التحكم المنطقي - يدعم التحديث المباشر
+   Key Invest VIP - Main Logic
    ========================================= */
 
-// متغير لتخزين بيانات المستخدم الحالية
-let userData = {
-    id: null,
-    name: 'ضيف',
-    balance: 0,
-    plans: [],
-    isRegistered: false
+// استيراد مكتبات فايربيس
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// ⚠️⚠️ ضع إعدادات مشروعك هنا ⚠️⚠️
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "123456",
+    appId: "1:123456"
 };
 
-// === عند تحميل الصفحة ===
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. التحقق من وجود ID محفوظ مسبقاً
-    const savedId = localStorage.getItem('keyApp_userId');
-    
-    if (savedId) {
-        // إذا وجدنا ID، نبدأ بمراقبة بيانات هذا المستخدم من السيرفر
-        startDataListener(savedId);
-    } else {
-        // إذا لم يوجد، نظهر شاشة التسجيل
-        document.getElementById('loginModal').style.display = 'flex';
-    }
+// تهيئة Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    // تشغيل انميشن العداد اليومي (شكلي فقط)
-    startLiveTimer();
-    // تجهيز رابط الدعوة
-    setupInviteLink();
+// === 1. منطق تثبيت التطبيق (PWA Install) ===
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // إظهار نافذة التثبيت الآن فقط
+    const banner = document.getElementById('installBanner');
+    if (banner) banner.style.display = 'flex';
 });
 
-// === 1. دالة التسجيل (إنشاء مستخدم جديد في Firebase) ===
-async function registerUser() {
-    const nameInput = document.getElementById('regName');
-    const passInput = document.getElementById('regPass'); // (اختياري حالياً)
+// التعامل مع زر التثبيت
+const installBtn = document.getElementById('installBtn');
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User choice: ${outcome}`);
+            deferredPrompt = null;
+        }
+        closeInstallBanner();
+    });
+}
 
-    if (nameInput.value.length < 3) return alert('الاسم قصير جداً');
+// دالة إغلاق نافذة التثبيت
+window.closeInstallBanner = function() {
+    const banner = document.getElementById('installBanner');
+    if (banner) banner.style.display = 'none';
+}
 
+// === 2. المتغيرات والتهيئة ===
+let userData = {
+    id: null,
+    name: 'زائر',
+    balance: 0,
+    plans: []
+};
+
+// عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    const savedId = localStorage.getItem('keyApp_userId');
+    if (savedId) {
+        startDataListener(savedId);
+    } else {
+        document.getElementById('loginModal').style.display = 'flex';
+    }
+    
+    startLiveTimer();
+    
+    // GSAP Anims
+    gsap.from(".app-header", {y: -50, opacity: 0, duration: 0.8});
+    gsap.from(".balance-card", {scale: 0.9, opacity: 0, delay: 0.3});
+});
+
+// === 3. وظائف المستخدم ===
+window.loginGuest = async function() {
     const newId = 'USER_' + Math.floor(100000 + Math.random() * 900000);
-
-    // هيكلة البيانات في قاعدة البيانات
-    const newUserProfile = {
+    const newUser = {
         id: newId,
-        name: nameInput.value,
-        password: passInput.value,
-        balance: 0,       // الرصيد الابتدائي
-        plans: [],        // مصفوفة الاشتراكات فارغة
-        teamCount: 0,     // عدد الفريق
+        name: 'ضيف',
+        balance: 0,
+        plans: [],
         createdAt: new Date().toISOString()
     };
-
+    
     try {
-        // حفظ في Firestore
-        await window.setDoc(window.doc(window.db, "users", newId), newUserProfile);
-        
-        // حفظ الآيدي في الهاتف للدخول التلقائي
+        await setDoc(doc(db, "users", newId), newUser);
         localStorage.setItem('keyApp_userId', newId);
-        
-        // إخفاء المودال والبدء بالاستماع
         document.getElementById('loginModal').style.display = 'none';
         startDataListener(newId);
-        
-        alert('تم إنشاء الحساب بنجاح!');
-    } catch (error) {
-        console.error("Error creating user:", error);
-        alert('حدث خطأ في الاتصال بالسيرفر');
+    } catch (e) {
+        alert("خطأ في الاتصال");
     }
 }
 
-// === 2. دالة الاستماع الحي (Core Function) ===
-// هذه الدالة هي المسؤولة عن تحديث التطبيق فوراً عند تغيير أي شيء في فايربيس
-function startDataListener(userId) {
-    // مرجع للمستند الخاص بالمستخدم
-    const userRef = window.doc(window.db, "users", userId);
+window.loginGoogle = function() {
+    alert("يتطلب تفعيل Firebase Auth");
+}
 
-    // onSnapshot تستمع لأي تغيير
-    window.onSnapshot(userRef, (docSnap) => {
+window.logout = function() {
+    localStorage.removeItem('keyApp_userId');
+    location.reload();
+}
+
+// === 4. الاستماع الحي للبيانات ===
+function startDataListener(userId) {
+    onSnapshot(doc(db, "users", userId), (docSnap) => {
         if (docSnap.exists()) {
             userData = docSnap.data();
-            
-            // تحديث الواجهة فوراً
-            updateDashboardUI();
-            
-            // إخفاء شاشة التسجيل للتأكيد
+            updateUI();
             document.getElementById('loginModal').style.display = 'none';
         } else {
-            console.log("المستخدم غير موجود في قاعدة البيانات");
             localStorage.removeItem('keyApp_userId');
             location.reload();
         }
-    }, (error) => {
-        console.error("خطأ في جلب البيانات:", error);
     });
 }
 
-// === 3. تحديث عناصر الشاشة ===
-function updateDashboardUI() {
-    // تحديث النصوص الأساسية
-    if(document.getElementById('headerName')) 
-        document.getElementById('headerName').innerText = userData.name;
-    
-    if(document.getElementById('userId')) 
-        document.getElementById('userId').innerText = userData.id;
-    
-    if(document.getElementById('walletBalance')) 
-        document.getElementById('walletBalance').innerText = userData.balance.toLocaleString() + ' IQD';
+// تحديث الواجهة
+function updateUI() {
+    document.getElementById('headerName').innerText = userData.name;
+    document.getElementById('userId').innerText = userData.id;
+    document.getElementById('walletBalance').innerText = userData.balance.toLocaleString() + ' IQD';
+    document.getElementById('walletBalance2').innerText = userData.balance.toLocaleString() + ' IQD';
+    document.getElementById('myInviteCode').innerText = userData.id;
 
-    if(document.getElementById('teamCount'))
-        document.getElementById('teamCount').innerText = userData.teamCount || 0;
-
-    // تحديث قائمة الاشتراكات
-    renderPlans();
-    
-    // تحديث رابط الدعوة
-    setupInviteLink();
-}
-
-// رسم قائمة الاشتراكات بناءً على البيانات من فايربيس
-function renderPlans() {
     const list = document.getElementById('myPlansList');
-    if(!list) return;
-
-    list.innerHTML = ''; // مسح القائمة القديمة
-
-    if (!userData.plans || userData.plans.length === 0) {
-        list.innerHTML = '<li style="text-align:center;color:#999;padding:10px;">لا توجد اشتراكات نشطة</li>';
-        return;
-    }
-
-    // ترتيب الاشتراكات (الأحدث أولاً)
-    const reversedPlans = [...userData.plans].reverse();
-
-    reversedPlans.forEach(plan => {
-        let statusText = '';
-        let statusColor = '';
-
-        if (plan.status === 'active') {
-            statusText = 'نشط ✅';
-            statusColor = '#2ecc71'; // أخضر
-        } else if (plan.status === 'pending') {
-            statusText = 'قيد المراجعة ⏳';
-            statusColor = '#f39c12'; // برتقالي
-        } else {
-            statusText = 'منتهي ❌';
-            statusColor = '#e74c3c'; // أحمر
-        }
-
-        list.innerHTML += `
-            <li class="menu-item" style="justify-content:space-between; border-right: 3px solid ${statusColor}">
-                <div>
-                    <span style="font-weight:bold; display:block">${plan.type}</span>
-                    <span style="font-size:0.75rem; color:#888">${plan.requestDate.split('T')[0]}</span>
-                </div>
-                <span style="color:${statusColor}; font-weight:bold; font-size:0.9rem">${statusText}</span>
-            </li>
-        `;
-    });
-}
-
-// === 4. طلب اشتراك جديد ===
-async function requestPlan(type, price) {
-    if(!userData.id) return;
-
-    if(confirm(`تأكيد طلب الاشتراك في باقة ${price.toLocaleString()}؟`)) {
-        // تجهيز كائن الاشتراك الجديد
-        const newPlanObj = {
-            type: type,      // مثلاً "باقة المبتدئ"
-            price: price,
-            status: 'pending', // الحالة الافتراضية
-            requestDate: new Date().toISOString()
-        };
-
-        try {
-            const userRef = window.doc(window.db, "users", userData.id);
-            
-            // استخدام arrayUnion لإضافة العنصر للمصفوفة دون حذف القديم
-            await window.updateDoc(userRef, {
-                plans: window.arrayUnion(newPlanObj)
-            });
-            
-            alert('✅ تم إرسال الطلب بنجاح! سيظهر في القائمة فوراً.');
-            switchTab('profile'); // الذهاب للبروفايل لرؤية الطلب
-            
-        } catch (e) {
-            console.error("Error adding plan:", e);
-            alert('فشل إرسال الطلب، تأكد من الإنترنت');
-        }
+    list.innerHTML = '';
+    
+    if(userData.plans && userData.plans.length > 0) {
+        userData.plans.forEach(p => {
+            let color = p.status === 'active' ? 'green' : 'orange';
+            let txt = p.status === 'active' ? 'نشط' : 'مراجعة';
+            list.innerHTML += `
+                <li class="menu-item" style="justify-content:space-between; border-right:3px solid ${color}">
+                    <span>${p.type}</span> <span style="color:${color}">${txt}</span>
+                </li>`;
+        });
+    } else {
+        list.innerHTML = '<li style="text-align:center; color:#999; padding:10px;">لا توجد اشتراكات</li>';
     }
 }
 
-// === 5. الوظائف المساعدة والتنقل ===
-
-function switchTab(tabId) {
+// === 5. التنقل والوظائف العامة ===
+window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => {
         el.style.display = 'none';
         el.classList.remove('active');
     });
-    
     const target = document.getElementById(tabId);
     if(target) {
         target.style.display = 'block';
-        // مهلة بسيطة لتشغيل الانميشن
-        setTimeout(() => target.classList.add('active'), 10);
-        
-        // GSAP Animation
-        if(window.gsap) {
-            gsap.fromTo(target, {opacity: 0, y: 15}, {opacity: 1, y: 0, duration: 0.4});
+        target.classList.add('active');
+        gsap.fromTo(target, {opacity: 0, y: 10}, {opacity: 1, y: 0, duration: 0.3});
+    }
+    
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    // (منطق بسيط لتفعيل الزر)
+    if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
+}
+
+window.requestPlan = async function(type, price) {
+    if(!userData.id) return;
+    if(confirm(`تأكيد الاشتراك بـ ${price}؟`)) {
+        const newPlan = {
+            type: type,
+            price: price,
+            status: 'pending',
+            date: new Date().toISOString()
+        };
+        try {
+            await updateDoc(doc(db, "users", userData.id), {
+                plans: arrayUnion(newPlan)
+            });
+            window.showMsg("نجاح", "تم إرسال طلبك", "✅");
+            window.switchTab('profile');
+        } catch (e) {
+            console.error(e);
         }
     }
-
-    // تحديث أزرار الناف بار
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    // منطق بسيط لتحديد الزر
-    if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
-    if(tabId === 'profile') document.querySelectorAll('.nav-item')[0].classList.add('active');
-    if(tabId === 'team') document.querySelectorAll('.nav-item')[1].classList.add('active');
-    if(tabId === 'store') document.querySelectorAll('.nav-item')[3].classList.add('active');
-    if(tabId === 'agents') document.querySelectorAll('.nav-item')[4].classList.add('active');
 }
 
-function setupInviteLink() {
-    const linkInput = document.getElementById('myInviteLink');
-    if(linkInput && userData.id) {
-        linkInput.value = `https://key-invest.app/join?ref=${userData.id}`;
-    }
+window.showMsg = function(title, msg, icon) {
+    document.getElementById('alertTitle').innerText = title;
+    document.getElementById('alertMsg').innerText = msg;
+    document.getElementById('alertIcon').innerText = icon;
+    document.getElementById('customAlert').style.display = 'flex';
 }
 
-function copyInviteLink() {
-    const copyText = document.getElementById("myInviteLink");
-    if(!copyText) return;
-    copyText.select();
-    navigator.clipboard.writeText(copyText.value);
-    alert("تم نسخ الرابط: " + copyText.value);
+window.closeCustomAlert = function() {
+    document.getElementById('customAlert').style.display = 'none';
 }
 
-function showComingSoon() {
-    alert('⚠️ هذه الميزة قيد التطوير حالياً');
+window.copyInviteLink = function() {
+    navigator.clipboard.writeText(`https://myapp.com?ref=${userData.id}`);
+    window.showMsg("تم النسخ", "تم نسخ رابط الدعوة", "📋");
 }
 
-function showDepositInfo() {
-    // فتح رابط التليجرام الخاص بالإيداع
-    window.open('https://t.me/an_ln2', '_blank');
+window.showDepositInfo = function() {
+    window.open("https://t.me/an_ln2", "_blank");
+}
+window.showWithdraw = function() {
+    window.showMsg("سحب", "السحب متاح يوم الجمعة فقط", "💸");
 }
 
-function logout() {
-    if(confirm('تسجيل خروج؟')) {
-        localStorage.removeItem('keyApp_userId');
-        location.reload();
-    }
-}
-
-// === 6. انميشن العداد (تجميلي فقط) ===
 function startLiveTimer() {
-    const timerEl = document.getElementById('dailyTimer');
-    if(!timerEl) return;
-    
     setInterval(() => {
-        const now = new Date();
-        const end = new Date();
-        end.setHours(23, 59, 59);
-        const diff = end - now;
-        
-        const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-        const m = Math.floor((diff / (1000 * 60)) % 60);
-        const s = Math.floor((diff / 1000) % 60);
-        
-        timerEl.innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        const d = new Date();
+        const str = `${23-d.getHours()}:${59-d.getMinutes()}:${59-d.getSeconds()}`;
+        const el = document.getElementById('dailyTimer');
+        if(el) el.innerText = str;
     }, 1000);
 }
