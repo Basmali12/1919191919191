@@ -1,13 +1,11 @@
 /* =========================================
-   Keey App - Fully Updated Logic
+   Keey App - Logic V2
    ========================================= */
 
-// 1. استيراد المكتبات
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, collection, getDocs, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// 2. إعدادات Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAFzCkQI0jedUl8W9xO1Bwzdg2Rhnxsh-s",
     authDomain: "kj1i-c1d4d.firebaseapp.com",
@@ -23,64 +21,59 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// === منطق PWA (التثبيت) ===
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const banner = document.getElementById('installBanner');
-    if (banner) banner.style.display = 'flex';
-});
+// === منطق التثبيت (تم ربطه بالكود في HTML) ===
+document.addEventListener('DOMContentLoaded', () => {
+    const installBtn = document.getElementById('installBtn');
+    
+    // فحص إذا تم التقاط الحدث في HTML
+    if (window.deferredPrompt) {
+        const banner = document.getElementById('installBanner');
+        if (banner) banner.style.display = 'flex';
+    }
 
-const installBtn = document.getElementById('installBtn');
-if (installBtn) {
-    installBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            deferredPrompt = null;
-        }
-        closeInstallBanner();
-    });
-}
+    if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                const { outcome } = await window.deferredPrompt.userChoice;
+                window.deferredPrompt = null;
+            }
+            closeInstallBanner();
+        });
+    }
+});
 
 window.closeInstallBanner = function() {
     const banner = document.getElementById('installBanner');
     if (banner) banner.style.display = 'none';
 }
 
-// === المتغيرات والبدء ===
+// === باقي الكود كما هو تماماً ===
 let userData = {
     id: null,
     name: 'زائر',
     balance: 0,
     plans: [],
-    lastProfitTime: 0 // للعداد
+    lastProfitTime: 0
 };
 
-let timerInterval; // متغير للعداد
+let timerInterval;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // طلب إذن الإشعارات عند فتح التطبيق
     if ("Notification" in window) {
         Notification.requestPermission();
     }
 
-    // التحقق المزدوج (LocalStorage + Firebase Auth) لحل مشكلة الخروج
     const savedId = localStorage.getItem('keyApp_userId');
     
-    // مراقب المصادقة (الأهم للاستمرار)
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            // المستخدم مسجل دخول بالفعل في فايربيس
             const userId = "USER_" + user.uid.substring(0, 10);
-            localStorage.setItem('keyApp_userId', userId); // تحديث اللوكال
+            localStorage.setItem('keyApp_userId', userId);
             startDataListener(userId);
         } else if (savedId && savedId.startsWith('GUEST')) {
-            // حالة الزائر
             startDataListener(savedId);
         } else {
-            // غير مسجل
             document.getElementById('loginModal').style.display = 'flex';
         }
     });
@@ -93,7 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// === دالة جلب الخطط ===
 async function fetchPlansFromAdmin() {
     const container = document.getElementById('dynamicPlansArea');
     if(!container) return;
@@ -136,7 +128,6 @@ async function fetchPlansFromAdmin() {
     }
 }
 
-// === تسجيل الدخول ===
 window.loginGoogle = function() {
     signInWithPopup(auth, provider)
     .then(async (result) => {
@@ -154,7 +145,7 @@ window.loginGoogle = function() {
                 balance: 0,
                 plans: [],
                 status: 'active',
-                lastProfitTime: Date.now(), // بداية العداد عند التسجيل
+                lastProfitTime: Date.now(),
                 createdAt: new Date().toISOString()
             };
             await setDoc(doc(db, "users", userId), newUser);
@@ -162,7 +153,6 @@ window.loginGoogle = function() {
         
         localStorage.setItem('keyApp_userId', userId);
         document.getElementById('loginModal').style.display = 'none';
-        // startDataListener سيتم استدعاؤها تلقائياً عبر onAuthStateChanged
         window.showMsg("تم الدخول", `أهلاً بك ${user.displayName}`, "✅");
 
     }).catch((error) => {
@@ -202,7 +192,6 @@ window.logout = function() {
     });
 }
 
-// === الاستماع للبيانات + العداد الآمن ===
 function startDataListener(userId) {
     onSnapshot(doc(db, "users", userId), (docSnap) => {
         if (docSnap.exists()) {
@@ -215,39 +204,31 @@ function startDataListener(userId) {
             }
 
             updateUI();
-            checkAndStartTimer(); // تشغيل منطق العداد
+            checkAndStartTimer();
             document.getElementById('loginModal').style.display = 'none';
         } else {
-            // إذا حذف المستخدم من القاعدة
             localStorage.removeItem('keyApp_userId');
         }
     });
 }
 
-// === منطق العداد الآمن (Server Side Logic) ===
 function checkAndStartTimer() {
     if (timerInterval) clearInterval(timerInterval);
 
-    // ربح يومي ثابت (يمكنك تغييره أو جعله يعتمد على الباقات)
     const DAILY_PROFIT_AMOUNT = 500; 
 
     function updateTimerDisplay() {
         const now = Date.now();
-        // الوقت المستهدف هو: وقت آخر ربح + 24 ساعة
         const targetTime = (userData.lastProfitTime || 0) + (24 * 60 * 60 * 1000);
         const diff = targetTime - now;
 
         const el = document.getElementById('dailyTimer');
 
         if (diff <= 0) {
-            // انتهى العداد!
             if(el) el.innerText = "جاري إضافة الأرباح...";
             clearInterval(timerInterval);
-            
-            // إضافة الرصيد تلقائياً وتحديث وقت العداد في قاعدة البيانات
             claimProfit(DAILY_PROFIT_AMOUNT);
         } else {
-            // العداد شغال
             const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
@@ -259,21 +240,19 @@ function checkAndStartTimer() {
         }
     }
 
-    updateTimerDisplay(); // تحديث فوري
-    timerInterval = setInterval(updateTimerDisplay, 1000); // تحديث كل ثانية
+    updateTimerDisplay();
+    timerInterval = setInterval(updateTimerDisplay, 1000);
 }
 
 async function claimProfit(amount) {
     try {
         const userRef = doc(db, "users", userData.id);
         
-        // تحديث الرصيد + تحديث وقت آخر ربح للوقت الحالي
         await updateDoc(userRef, {
             balance: increment(amount),
             lastProfitTime: Date.now()
         });
 
-        // إرسال إشعار للمستخدم
         sendNotification("💰 تم إضافة الأرباح!", `تم انتهاء العداد اليومي وإضافة ${amount} IQD لمحفظتك.`);
 
     } catch (e) {
@@ -282,7 +261,6 @@ async function claimProfit(amount) {
 }
 
 function sendNotification(title, body) {
-    // إذا المتصفح يدعم الإشعارات وتم السماح بها
     if ("Notification" in window && Notification.permission === "granted") {
         new Notification(title, {
             body: body,
@@ -291,7 +269,6 @@ function sendNotification(title, body) {
     }
 }
 
-// === تحديث الواجهة ===
 function updateUI() {
     if(document.getElementById('headerName')) document.getElementById('headerName').innerText = userData.name;
     if(document.getElementById('userId')) document.getElementById('userId').innerText = userData.id;
@@ -317,7 +294,6 @@ function updateUI() {
     }
 }
 
-// === الوظائف العامة ===
 window.requestPlan = async function(planName, price, planId) {
     if(!userData.id) return;
     
@@ -362,13 +338,12 @@ window.switchTab = function(tabId) {
     
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     
-    // تحديد الزر النشط في الناف بار
     if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
     else if(tabId === 'profile') document.querySelectorAll('.nav-item')[0].classList.add('active');
     else if(tabId === 'team') document.querySelectorAll('.nav-item')[1].classList.add('active');
     else if(tabId === 'store') document.querySelectorAll('.nav-item')[3].classList.add('active');
     else if(tabId === 'soon') document.querySelectorAll('.nav-item')[4].classList.add('active');
-    else if(tabId === 'wallet') {} // المحفظة ليس لها زر مباشر في الناف الجديد
+    else if(tabId === 'wallet') {}
 }
 
 window.showMsg = function(title, msg, icon) {
