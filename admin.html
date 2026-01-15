@@ -37,7 +37,7 @@
             
             <section id="counters" class="tab-section active">
                 <div class="header-box">
-                    <h2>إدارة العدادات والباقات</h2>
+                    <h2>إدارة العدادات والباقات (Live)</h2>
                     <button onclick="toggleAddForm()" class="btn-add">+ إضافة عداد جديد</button>
                 </div>
 
@@ -53,13 +53,14 @@
                 </div>
 
                 <div class="plans-list" id="adminPlansList">
-                    </div>
+                    جاري التحميل...
+                </div>
             </section>
 
             <section id="investors" class="tab-section">
                 <h2>إدارة المستثمرين</h2>
                 <div class="search-box">
-                    <input type="text" id="searchId" placeholder="ابحث بواسطة ID المستخدم...">
+                    <input type="text" id="searchId" placeholder="ابحث بواسطة ID المستخدم (مثال: USER_xxxxx)...">
                     <button onclick="searchUser()"><i class="fas fa-search"></i> بحث</button>
                 </div>
 
@@ -85,7 +86,7 @@
             </section>
 
             <section id="notes" class="tab-section">
-                <h2>سجل المستثمرين اليدوي</h2>
+                <h2>سجل الملاحظات (محلية)</h2>
                 <div class="note-input">
                     <input type="text" id="noteName" placeholder="اسم المستثمر">
                     <input type="date" id="noteDate">
@@ -99,20 +100,20 @@
                             <th>إجراء</th>
                         </tr>
                     </thead>
-                    <tbody id="notesList">
-                        </tbody>
+                    <tbody id="notesList"></tbody>
                 </table>
             </section>
 
             <section id="withdrawals" class="tab-section">
-                <h2>طلبات السحب المعلقة</h2>
+                <h2>طلبات السحب</h2>
                 <div class="withdrawals-grid" id="withdrawalsList">
-                    </div>
+                    <p style="color:#777">سيتم ربط الطلبات قريباً...</p>
+                </div>
             </section>
 
         </main>
     </div>
 
-    <script src="admin-script.js"></script>
+    <script src="admin-script.js" type="module"></script>
 </body>
 </html>
