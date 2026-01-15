@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة | Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+    <div id="adminLoginModal" class="login-overlay">
+        <div class="login-box">
+            <div class="icon-lock"><i class="fas fa-user-shield"></i></div>
+            <h2>تسجيل دخول المدير</h2>
+            <input type="email" id="adminEmail" placeholder="البريد الإلكتروني">
+            <input type="password" id="adminPass" placeholder="كلمة المرور">
+            <button onclick="adminLogin()">دخول</button>
+            <p id="loginError" style="color:red; display:none; margin-top:10px;">بيانات غير صحيحة</p>
+        </div>
+    </div>
+
+    <div class="admin-container" id="adminPanel" style="display:none;">
+        
+        <aside class="sidebar">
+            <div class="brand">Admin <span>Panel</span></div>
+            <ul>
+                <li onclick="showTab('counters')" class="active"><i class="fas fa-tachometer-alt"></i> العدادات</li>
+                <li onclick="showTab('investors')"><i class="fas fa-users"></i> المستثمرين</li>
+                <li onclick="showTab('notes')"><i class="fas fa-sticky-note"></i> المذكرة</li>
+                <li onclick="showTab('withdrawals')"><i class="fas fa-money-bill-wave"></i> السحوبات</li>
+                <li onclick="adminLogout()" style="color:#ff6b6b; margin-top:50px;"><i class="fas fa-sign-out-alt"></i> خروج</li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            
+            <section id="counters" class="tab-section active">
+                <div class="header-box">
+                    <h2>إدارة العدادات والباقات</h2>
+                    <button onclick="toggleAddForm()" class="btn-add">+ إضافة عداد جديد</button>
+                </div>
+
+                <div id="addPlanForm" class="form-panel" style="display:none;">
+                    <h3>بيانات العداد الجديد</h3>
+                    <div class="grid-inputs">
+                        <input type="text" id="pName" placeholder="اسم العداد">
+                        <input type="number" id="pPrice" placeholder="سعر العداد">
+                        <input type="number" id="pProfit" placeholder="الربح اليومي">
+                        <input type="number" id="pStock" placeholder="عدد المستثمرين المسموح (Limit)">
+                    </div>
+                    <button onclick="addNewPlan()" class="btn-save">حفظ ونشر</button>
+                </div>
+
+                <div class="plans-list" id="adminPlansList">
+                    </div>
+            </section>
+
+            <section id="investors" class="tab-section">
+                <h2>إدارة المستثمرين</h2>
+                <div class="search-box">
+                    <input type="text" id="searchId" placeholder="ابحث بواسطة ID المستخدم...">
+                    <button onclick="searchUser()"><i class="fas fa-search"></i> بحث</button>
+                </div>
+
+                <div id="userResult" class="user-card" style="display:none;">
+                    <div class="user-info">
+                        <h3><i class="fas fa-user-circle"></i> <span id="uName">---</span></h3>
+                        <p>ID: <span id="uID">---</span></p>
+                        <p>الحالة: <span id="uStatus" class="badge-active">نشط</span></p>
+                    </div>
+                    <div class="balance-control">
+                        <label>الرصيد الحالي:</label>
+                        <input type="number" id="uBalance">
+                        <div class="btns">
+                            <button onclick="updateBalance(1)" class="btn-green">زيادة +</button>
+                            <button onclick="updateBalance(-1)" class="btn-orange">نقصان -</button>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button onclick="saveUserChanges()" class="btn-blue">حفظ التعديلات</button>
+                        <button onclick="banUser()" class="btn-red">حظر / تعطيل الحساب</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="notes" class="tab-section">
+                <h2>سجل المستثمرين اليدوي</h2>
+                <div class="note-input">
+                    <input type="text" id="noteName" placeholder="اسم المستثمر">
+                    <input type="date" id="noteDate">
+                    <button onclick="addNote()">تسجيل</button>
+                </div>
+                <table class="notes-table">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>تاريخ الاستثمار</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="notesList">
+                        </tbody>
+                </table>
+            </section>
+
+            <section id="withdrawals" class="tab-section">
+                <h2>طلبات السحب المعلقة</h2>
+                <div class="withdrawals-grid" id="withdrawalsList">
+                    </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="admin-script.js"></script>
+</body>
+</html>
