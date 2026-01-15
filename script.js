@@ -1,317 +1,187 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-// === استبدل هذا الجزء ببياناتك من Firebase ===
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "123",
-    appId: "1:123:web:abc"
+/* === إعدادات الإدارة (تحكم بالعدد) === */
+const PLAN_SETTINGS = {
+    plan1: { total: 20, sold: 10 },
+    plan2: { total: 20, sold: 18 }
 };
 
-let app, auth, provider;
-try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    provider = new GoogleAuthProvider();
-} catch (e) { console.error("Firebase config missing"); }
-
-// === المتغيرات العامة ===
-let currentUser = null;
-let isPreviewMode = false;
-let userLocalData = {
-    balance: 0,
-    activePlans: [],
-    history: [], // سجل العمليات
-    id: '---'
-};
-
-// === عند التحميل ===
-document.addEventListener('DOMContentLoaded', () => {
-    runIntroAnimation();
-    if(auth) {
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                loginSuccess(user);
-            } else {
-                if(!isPreviewMode) document.getElementById('authModal').style.display = 'flex';
-            }
-        });
+/* === نظام الحماية === */
+const SECURITY_KEY = 'secure_check_v1';
+function checkTimeIntegrity() {
+    const now = Date.now();
+    const lastTime = localStorage.getItem(SECURITY_KEY);
+    if (lastTime && now < parseInt(lastTime)) {
+        document.body.innerHTML = '<h1 style="color:red;text-align:center;margin-top:50px;">🚫 خطأ في الوقت!</h1>';
+        throw new Error("Time Error");
     }
-    
-    // ربط الأزرار
-    document.getElementById('googleLoginBtn').addEventListener('click', googleLogin);
-    setInterval(updateTimersUI, 1000);
+    localStorage.setItem(SECURITY_KEY, now);
+}
+setInterval(checkTimeIntegrity, 2000);
+
+/* ================= المتغيرات ================= */
+let userData = JSON.parse(localStorage.getItem('keyAppUser_v7')) || {
+    isRegistered: false,
+    name: 'زائر',
+    id: 'KEY' + Math.floor(1000 + Math.random() * 9000),
+    balance: 0,
+    plans: [],
+    history: []
+};
+
+/* ================= عند التحميل ================= */
+document.addEventListener('DOMContentLoaded', () => {
+    checkLogin();
+    updateUI();
+    updateStockDisplay();
+    startLiveTimer();
+    renderHistory();
 });
 
-// === 1. دوال النظام الأساسية ===
-window.startGuestMode = () => {
-    isPreviewMode = true;
-    document.getElementById('authModal').style.display = 'none';
-    document.getElementById('userName').innerText = 'زائر (معاينة)';
-    document.getElementById('userId').innerText = 'GUEST-101';
-    userLocalData.balance = 250000; // رصيد وهمي للمعاينة
-    // إضافة بيانات وهمية للسجل
-    userLocalData.history = [
-        { type: 'withdraw', amount: 50000, date: '2025/01/10', status: 'done' },
-        { type: 'withdraw', amount: 25000, date: '2025/01/05', status: 'done' }
-    ];
-    updateWalletUI();
-    showMsg('🎉 أنت الآن في وضع المعاينة', 'success');
-};
-
-window.googleLogin = () => {
-    signInWithPopup(auth, provider).catch(err => showMsg("خطأ: " + err.message));
-};
-
-function loginSuccess(user) {
-    document.getElementById('authModal').style.display = 'none';
-    document.getElementById('userName').innerText = user.displayName;
-    userLocalData.id = user.uid.substring(0, 8).toUpperCase();
-    document.getElementById('userId').innerText = userLocalData.id;
+/* ================= الوظائف الأساسية ================= */
+// دالة التنبيه الجديدة
+function showMsg(title, msg, icon) {
+    document.getElementById('alertTitle').innerText = title;
+    document.getElementById('alertMsg').innerText = msg;
+    document.querySelector('.alert-icon').innerText = icon || '⚠️';
     
-    const saved = localStorage.getItem(`keyInvest_${user.uid}`);
-    if(saved) userLocalData = JSON.parse(saved);
+    const overlay = document.getElementById('customAlert');
+    const box = document.querySelector('.custom-alert-box');
     
-    updateWalletUI();
-    renderActiveTimers();
+    overlay.style.display = 'flex';
+    setTimeout(() => box.classList.add('show'), 10);
 }
 
-window.logout = () => {
-    if(isPreviewMode) location.reload();
-    else signOut(auth).then(() => location.reload());
-};
+function closeCustomAlert() {
+    const overlay = document.getElementById('customAlert');
+    const box = document.querySelector('.custom-alert-box');
+    box.classList.remove('show');
+    setTimeout(() => overlay.style.display = 'none', 300);
+}
 
-window.switchTab = (tabId) => {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('active');
+    });
+    const target = document.getElementById(tabId);
+    if(target) {
+        target.style.display = 'block';
+        target.classList.add('active');
+        gsap.fromTo(target, {opacity: 0, y: 10}, {opacity: 1, y: 0, duration: 0.3});
+    }
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
-    
-    // تفعيل الأيقونة المناسبة
-    const tabs = ['wallet', 'invest', 'my-timers', 'features', 'team', 'profile'];
-    const idx = tabs.indexOf(tabId);
-    if(idx >= 0) document.querySelectorAll('.nav-item')[idx].classList.add('active');
-};
+    // تفعيل الزر المناسب
+    if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
+    else if(tabId === 'wallet') document.querySelectorAll('.nav-item')[4].classList.add('active');
+    else if(tabId === 'profile') document.querySelectorAll('.nav-item')[0].classList.add('active');
+    else if(tabId === 'team') document.querySelectorAll('.nav-item')[1].classList.add('active');
+    else if(tabId === 'store') document.querySelectorAll('.nav-item')[3].classList.add('active');
+}
 
-// === 2. نظام الرسائل المخصص (Popup System) ===
-// دالة عرض رسالة عادية
-window.showMsg = (msg, type = 'info') => {
-    const modal = document.getElementById('customModalOverlay');
-    const icon = document.getElementById('modalIcon');
-    const title = document.getElementById('modalTitle');
-    
-    document.getElementById('modalMessage').innerText = msg;
-    document.getElementById('modalInput').style.display = 'none';
-    document.getElementById('btnCancel').style.display = 'none';
-    
-    if(type === 'success') { icon.innerText = '✅'; title.innerText = 'تم بنجاح'; }
-    else if(type === 'error') { icon.innerText = '❌'; title.innerText = 'تنبيه'; }
-    else { icon.innerText = '🔔'; title.innerText = 'إشعار'; }
+function updateStockDisplay() {
+    let p1 = PLAN_SETTINGS.plan1;
+    let perc1 = (p1.sold / p1.total) * 100;
+    document.getElementById('fill1').style.width = perc1 + '%';
+    document.getElementById('txt1').innerText = `متاح: ${p1.total - p1.sold}/${p1.total}`;
+    if(p1.sold >= p1.total) document.getElementById('plan1').classList.add('sold-out');
 
-    // إعداد زر الموافقة ليغلق النافذة فقط
-    const btnConfirm = document.getElementById('btnConfirm');
-    btnConfirm.onclick = () => { modal.style.display = 'none'; };
-    
-    modal.style.display = 'flex';
-};
+    let p2 = PLAN_SETTINGS.plan2;
+    let perc2 = (p2.sold / p2.total) * 100;
+    document.getElementById('fill2').style.width = perc2 + '%';
+    document.getElementById('txt2').innerText = `متاح: ${p2.total - p2.sold}/${p2.total}`;
+    if(p2.sold >= p2.total) document.getElementById('plan2').classList.add('sold-out');
+}
 
-// دالة لطلب إدخال (بديلة لـ prompt) - تعود بـ Promise
-window.showPrompt = (titleText, placeholder) => {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('customModalOverlay');
-        document.getElementById('modalIcon').innerText = '✍️';
-        document.getElementById('modalTitle').innerText = titleText;
-        document.getElementById('modalMessage').innerText = '';
-        
-        const input = document.getElementById('modalInput');
-        input.style.display = 'block';
-        input.value = '';
-        input.placeholder = placeholder;
-        input.focus();
-
-        const btnConfirm = document.getElementById('btnConfirm');
-        const btnCancel = document.getElementById('btnCancel');
-        btnCancel.style.display = 'inline-block';
-
+/* ================= إدارة المستخدم والمالية ================= */
+function checkLogin() {
+    const modal = document.getElementById('loginModal');
+    if (!userData.isRegistered) {
         modal.style.display = 'flex';
-
-        btnConfirm.onclick = () => {
-            const val = input.value;
-            if(!val) return;
-            modal.style.display = 'none';
-            resolve(val);
-        };
-
-        btnCancel.onclick = () => {
-            modal.style.display = 'none';
-            resolve(null);
-        };
-    });
-};
-
-// === 3. منطق السحب الجديد (المطلوب) ===
-window.handleWithdraw = async () => {
-    // 1. طلب المبلغ
-    const amountStr = await showPrompt("سحب الرصيد", "أدخل المبلغ (IQD)");
-    
-    if (!amountStr) return; // تم الإلغاء
-    
-    const amount = parseInt(amountStr);
-
-    // 2. التحقق من صحة الرقم
-    if (isNaN(amount) || amount <= 0) {
-        showMsg("يرجى إدخال مبلغ صحيح", "error");
-        return;
+    } else {
+        modal.style.display = 'none';
+        document.getElementById('headerName').innerText = userData.name;
+        document.getElementById('userId').innerText = userData.id;
+        document.getElementById('myInviteCode').innerText = userData.id;
+        document.getElementById('inviteUrlDisplay').innerText = `basmali12.github.io/ref/${userData.id}`;
     }
+}
 
-    // 3. التحقق من الرصيد
-    if (amount > userLocalData.balance) {
-        showMsg("❌ عذراً، رصيدك الحالي لا يكفي لإتمام العملية.", "error");
-        return;
-    }
+function loginGoogle() {
+    userData.isRegistered = true; userData.name = "Google User"; saveData(); checkLogin();
+}
+function loginGuest() {
+    userData.isRegistered = true; userData.name = "زائر"; saveData(); checkLogin();
+}
+function logout() {
+    if(confirm('خروج؟')) { localStorage.removeItem('keyAppUser_v7'); location.reload(); }
+}
 
-    // 4. خصم الرصيد وإضافة للسجل
-    userLocalData.balance -= amount;
-    
-    const newRecord = {
-        type: 'withdraw',
-        amount: amount,
-        date: new Date().toLocaleDateString(),
-        status: 'pending' // قيد الانتظار
-    };
-    
-    // إضافة لأول القائمة
-    userLocalData.history.unshift(newRecord);
-    
-    saveData();
-    updateWalletUI();
-    showMsg(`✅ تم إرسال طلب سحب بقيمة ${amount.toLocaleString()} IQD للمراجعة.`, "success");
-};
+function showDepositInfo() {
+    showMsg('إيداع رصيد', 'لشحن حسابك، يرجى التواصل مع الوكيل لإتمام العملية.\nسيتم تحويلك الآن.', '💳');
+    setTimeout(() => window.open('https://t.me/an_ln2', '_blank'), 2000);
+}
 
-window.handleDeposit = () => {
-    window.location.href = 'https://t.me/am_an12';
-};
+function showWithdraw() {
+    if(userData.balance < 10000) return showMsg('سحب الرصيد', 'رصيدك غير كافٍ للسحب. الحد الأدنى 10,000.', '🚫');
+    showMsg('سحب الرصيد', 'تم استلام طلب السحب وسيتم معالجته.', '✅');
+    userData.history.unshift({type: 'سحب', amount: 0, date: new Date().toLocaleDateString()}); 
+    saveData(); renderHistory();
+}
 
-// === 4. تحديث الواجهة ===
-function updateWalletUI() {
-    document.getElementById('totalBalance').innerText = userLocalData.balance.toLocaleString() + ' IQD';
-    
-    const list = document.getElementById('withdrawalHistory');
+function renderHistory() {
+    const list = document.getElementById('transList');
     list.innerHTML = '';
-
-    if(userLocalData.history.length === 0) {
-        list.innerHTML = '<li style="text-align:center; padding:10px; color:#aaa;">لا توجد عمليات</li>';
+    if(userData.history.length === 0) {
+        list.innerHTML = '<li style="text-align:center; color:#999; padding:10px;">لا توجد عمليات حديثة</li>';
         return;
     }
-
-    userLocalData.history.forEach(item => {
-        let statusHtml = '';
-        if(item.status === 'pending') {
-            statusHtml = `<span class="history-status status-pending">قيد الانتظار <span class="loading-dots"></span></span>`;
-        } else {
-            statusHtml = `<span class="history-status status-done">تم التحويل</span>`;
-        }
-
-        list.innerHTML += `
-            <li class="history-item">
-                <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                    <span style="font-weight:bold; color: #ff5252;">${item.amount.toLocaleString()} IQD</span>
-                    <span style="font-size:0.75rem; color:#ccc;">${item.date}</span>
-                </div>
-                ${statusHtml}
-            </li>
-        `;
+    userData.history.forEach(h => {
+        let cls = h.type === 'إيداع' ? 'in' : 'out';
+        list.innerHTML += `<li class="h-item ${cls}"><span>${h.type}</span><span>${h.date}</span></li>`;
     });
 }
 
-// === 5. بقية الوظائف (شراء، نسخ، الخ) ===
-window.buyPlan = (type, price, profit) => {
-    if(userLocalData.balance < price) return showMsg("رصيدك غير كافي للشراء", "error");
-    
-    userLocalData.balance -= price;
-    userLocalData.activePlans.push({
-        id: Date.now(),
-        name: type === 'starter' ? 'الباقة الأساسية' : 'الباقة الذهبية',
-        profit: profit,
-        nextClaim: Date.now() + 86400000
-    });
-    saveData();
-    updateWalletUI();
-    renderActiveTimers();
-    showMsg("تم تفعيل الباقة بنجاح! 🚀", "success");
-    switchTab('my-timers');
-};
-
-function renderActiveTimers() {
-    const box = document.getElementById('activeTimersList');
-    box.innerHTML = '';
-    userLocalData.activePlans.forEach((plan, idx) => {
-        box.innerHTML += `
-            <div class="timer-item">
-                <div>${plan.name}<br><small>ربح: ${plan.profit}</small></div>
-                <div id="t-${plan.id}" class="timer-count">--:--</div>
-                <button id="b-${plan.id}" onclick="claim(${idx})" style="display:none;" class="btn-primary">استلام</button>
-            </div>
-        `;
-    });
+/* ================= الفريق والباقات ================= */
+function copyInviteLink() {
+    navigator.clipboard.writeText(`https://basmali12.github.io/ref/${userData.id}`);
+    showMsg('نسخ الرابط', 'تم نسخ كود الدعوة بنجاح!', '📋');
 }
 
-function updateTimersUI() {
-    const now = Date.now();
-    userLocalData.activePlans.forEach(p => {
-        const diff = p.nextClaim - now;
-        const tDiv = document.getElementById(`t-${p.id}`);
-        const bDiv = document.getElementById(`b-${p.id}`);
-        if(!tDiv) return;
-        
-        if(diff <= 0) {
-            tDiv.style.display = 'none';
-            bDiv.style.display = 'block';
-        } else {
-            tDiv.style.display = 'block';
-            bDiv.style.display = 'none';
-            let h = Math.floor(diff/3600000);
-            let m = Math.floor((diff%3600000)/60000);
-            let s = Math.floor((diff%60000)/1000);
-            tDiv.innerText = `${h}:${m}:${s}`;
-        }
+function addMemberSim() {
+    let current = parseInt(document.getElementById('teamCount').innerText);
+    if(current < 10) document.getElementById('teamCount').innerText = current + 1;
+    else showMsg('تنبيه', 'الحد الأقصى للفريق 10 أعضاء', '🛑');
+}
+
+function requestPlan(type, price, planId) {
+    let settings = PLAN_SETTINGS['plan'+planId];
+    if(settings.sold >= settings.total) return showMsg('نأسف', 'نفذت الكمية لهذه الباقة!', '🔒');
+
+    showMsg('تأكيد الطلب', 'تم إرسال طلب الاشتراك للمراجعة.', '⏳');
+    userData.plans.push({type: type, status: 'pending'});
+    saveData(); updateUI(); switchTab('profile');
+}
+
+function startLiveTimer() {
+    setInterval(() => {
+        const now = new Date();
+        const end = new Date(); end.setHours(23, 59, 59);
+        const diff = end - now;
+        const h = Math.floor((diff % (86400000)) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        document.getElementById('dailyTimer').innerText = `${h}:${m}:${s}`;
+    }, 1000);
+}
+
+function updateUI() {
+    document.getElementById('walletBalance').innerText = userData.balance.toLocaleString() + ' IQD';
+    document.getElementById('walletBalance2').innerText = userData.balance.toLocaleString() + ' IQD';
+    const list = document.getElementById('myPlansList');
+    list.innerHTML = '';
+    if(userData.plans.length === 0) list.innerHTML = '<p style="text-align:center;color:#999">لا توجد اشتراكات</p>';
+    userData.plans.forEach(p => {
+        list.innerHTML += `<li class="menu-item" style="justify-content:space-between"><span>${p.type}</span> <span style="color:orange">قيد المراجعة</span></li>`;
     });
 }
 
-window.claim = (idx) => {
-    const p = userLocalData.activePlans[idx];
-    userLocalData.balance += p.profit;
-    p.nextClaim = Date.now() + 86400000;
-    saveData();
-    updateWalletUI();
-    showMsg(`تم استلام ${p.profit} IQD`, "success");
-};
-
-window.copyLink = () => {
-    navigator.clipboard.writeText(`https://key.app?ref=${userLocalData.id}`);
-    showMsg("تم نسخ الرابط");
-};
-
-window.openTelegram = () => location.href = 'https://t.me/keey10';
-
-function saveData() {
-    if(currentUser) localStorage.setItem(`keyInvest_${currentUser.uid}`, JSON.stringify(userLocalData));
-}
-
-function runIntroAnimation() {
-    var textWrapper = document.querySelector('.ml11 .letters');
-    textWrapper.innerHTML = textWrapper.textContent.replace(/([^\x00-\x80]|\w)/g, "<span class='letter'>$&</span>");
-    anime.timeline({loop: false})
-    .add({ targets: '.ml11 .line', scaleY: [0,1], opacity: [0.5,1], easing: "easeOutExpo", duration: 700 })
-    .add({ targets: '.ml11 .line', translateX: [0, document.querySelector('.ml11 .letters').getBoundingClientRect().width + 10], easing: "easeOutExpo", duration: 700, delay: 100 })
-    .add({ targets: '.ml11 .letter', opacity: [0,1], easing: "easeOutExpo", duration: 600, offset: '-=775', delay: (el, i) => 34 * (i+1) })
-    .add({ targets: '#intro-overlay', opacity: 0, duration: 1000, delay: 1000, complete: function(anim) { document.getElementById('intro-overlay').style.display = 'none'; }});
-}
-
-// تصدير البيانات ليستخدمها الملف الآخر
-window.userLocalData = userLocalData;
-window.saveData = saveData;
-window.updateWalletUI = updateWalletUI;
+function saveData() { localStorage.setItem('keyAppUser_v7', JSON.stringify(userData)); }
