@@ -1,5 +1,5 @@
 /* =========================================
-   Keey App - Logic V3 (Modified)
+   Keey App - Logic V3.1 (Corrected)
    ========================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -211,7 +211,7 @@ function startDataListener(userId) {
     });
 }
 
-// === التعديل 2 & 3: منطق المؤقت والجمع اليدوي ===
+// === منطق المؤقت والجمع اليدوي ===
 function checkAndStartTimer() {
     if (timerInterval) clearInterval(timerInterval);
 
@@ -219,32 +219,29 @@ function checkAndStartTimer() {
     const btnEl = document.getElementById('startMiningBtn');
 
     function updateTimerDisplay() {
-        // حساب الربح اليومي الكلي
         let totalDailyProfit = 0;
         if(userData.plans) {
             userData.plans.forEach(p => {
                 if(p.status === 'active') totalDailyProfit += (p.profit || 0);
             });
         }
-        document.getElementById('totalDailyProfit').innerText = totalDailyProfit.toLocaleString();
+        if(document.getElementById('totalDailyProfit')) {
+            document.getElementById('totalDailyProfit').innerText = totalDailyProfit.toLocaleString();
+        }
 
-        // منطق الوقت
         const now = Date.now();
         const lastTime = userData.lastProfitTime || 0;
-        const targetTime = lastTime + (24 * 60 * 60 * 1000); // 24 ساعة
+        const targetTime = lastTime + (24 * 60 * 60 * 1000); 
         const diff = targetTime - now;
 
         if (diff <= 0) {
-            // انتهى الوقت - توقف العداد واظهر زر الجمع
             if(timerEl) timerEl.style.display = 'none';
             if(btnEl) {
                 btnEl.style.display = 'block';
-                // تحديث نص الزر ليشمل المبلغ
                 btnEl.innerText = `⚡ اضغط لجمع ${totalDailyProfit} IQD وتشغيل العداد`;
             }
             clearInterval(timerInterval);
         } else {
-            // العداد يعمل
             if(btnEl) btnEl.style.display = 'none';
             if(timerEl) timerEl.style.display = 'block';
 
@@ -259,11 +256,10 @@ function checkAndStartTimer() {
         }
     }
 
-    updateTimerDisplay(); // تحديث فوري
+    updateTimerDisplay();
     timerInterval = setInterval(updateTimerDisplay, 1000);
 }
 
-// دالة الجمع اليدوي (جديدة)
 window.manualClaimAndStart = async function() {
     let totalProfit = 0;
     if(userData.plans) {
@@ -279,7 +275,6 @@ window.manualClaimAndStart = async function() {
     try {
         const userRef = doc(db, "users", userData.id);
         
-        // إضافة الربح وتحديث وقت آخر ربح للوقت الحالي (إعادة تشغيل العداد)
         await updateDoc(userRef, {
             balance: increment(totalProfit),
             lastProfitTime: Date.now()
@@ -293,7 +288,7 @@ window.manualClaimAndStart = async function() {
     }
 }
 
-// === تحديث الواجهة والتعديل 4 (تفاصيل الاشتراكات) ===
+// === تحديث الواجهة ===
 function updateUI() {
     if(document.getElementById('headerName')) document.getElementById('headerName').innerText = userData.name;
     if(document.getElementById('userId')) document.getElementById('userId').innerText = userData.id;
@@ -301,13 +296,12 @@ function updateUI() {
     if(document.getElementById('walletBalance2')) document.getElementById('walletBalance2').innerText = userData.balance.toLocaleString() + ' IQD';
     if(document.getElementById('myInviteCode')) document.getElementById('myInviteCode').innerText = userData.id;
 
-    // تحديث قائمة "حسابي" بالتفاصيل الجديدة
+    // تحديث قائمة "حسابي"
     const list = document.getElementById('myPlansList');
     if(list) {
         list.innerHTML = '';
         if(userData.plans && userData.plans.length > 0) {
             userData.plans.forEach(p => {
-                // حالة العداد: بما أن العداد واحد للجميع، الحالة تعتمد على العداد العام
                 let isActive = p.status === 'active';
                 let statusText = isActive ? 'يعمل' : 'متوقف';
                 let statusColor = isActive ? 'green' : 'red';
@@ -330,22 +324,20 @@ function updateUI() {
     }
 }
 
-// === التعديل 1: الشراء المباشر ===
+// === الشراء المباشر ===
 window.requestPlan = async function(planName, price, profit, planId) {
     if(!userData.id) return;
     
-    // التحقق من الرصيد
     if(userData.balance < price) {
         return window.showMsg("عذراً", "رصيدك غير كافي لشراء هذا العداد", "🚫");
     }
 
     if(confirm(`تأكيد شراء ${planName} بسعر ${price.toLocaleString()} IQD؟ \nسيتم تفعيل العداد فوراً.`)) {
-        // إنشاء الكائن مباشرة بحالة active
         const newPlan = {
             type: planName,
             price: price,
-            profit: profit, // حفظ قيمة الربح
-            status: 'active', // تفعيل فوري
+            profit: profit,
+            status: 'active',
             date: new Date().toISOString()
         };
 
@@ -353,19 +345,17 @@ window.requestPlan = async function(planName, price, profit, planId) {
             const userRef = doc(db, "users", userData.id);
             const planRef = doc(db, "plans", planId);
 
-            // خصم الرصيد + إضافة الخطة
             await updateDoc(userRef, {
-                balance: increment(-price), // خصم فوري
+                balance: increment(-price),
                 plans: arrayUnion(newPlan)
             });
 
-            // تحديث عدد المبيعات في مجموعة plans (اختياري لكن جيد للإحصائيات)
             await updateDoc(planRef, {
                 sold: increment(1)
             });
 
-            window.showMsg("تم الشراء", "تم تفعيل العداد بنجاح وبدأ احتساب الأرباح ضمن العداد اليومي", "✅");
-            window.switchTab('profile'); // الذهاب لصفحة الاشتراكات
+            window.showMsg("تم الشراء", "تم تفعيل العداد بنجاح وبدأ احتساب الأرباح", "✅");
+            window.switchTab('profile');
         } catch (e) {
             console.error(e);
             window.showMsg("خطأ", "فشل العملية", "❌");
@@ -373,9 +363,7 @@ window.requestPlan = async function(planName, price, profit, planId) {
     }
 }
 
-// === التعديل 5: السحب والإيداع ===
-
-// 1. الإيداع
+// === السحب والإيداع ===
 window.showDepositInfo = function() {
     window.showMsg("جاري التحويل...", "سيتم نقلك إلى قسم المالية (الوكيل) عبر التليجرام لإتمام الإيداع.", "✈️");
     setTimeout(() => {
@@ -383,13 +371,11 @@ window.showDepositInfo = function() {
     }, 2000);
 }
 
-// 2. السحب
 window.showWithdraw = function() {
     if (userData.balance < 7000) {
         return window.showMsg("تنبيه", "يجب أن يكون رصيدك 7000 IQD أو أكثر لتتمكن من السحب.", "🚫");
     }
     
-    // فتح النافذة وتحديث الرصيد فيها
     document.getElementById('wTotalBalance').innerText = userData.balance.toLocaleString();
     document.getElementById('wAmount').value = '';
     document.getElementById('wAccount').value = '';
@@ -413,13 +399,11 @@ window.submitWithdrawRequest = async function() {
 
     if (confirm(`هل أنت متأكد من سحب ${amount} IQD عبر ${method}؟`)) {
         try {
-            // 1. خصم الرصيد من المستخدم
             const userRef = doc(db, "users", userData.id);
             await updateDoc(userRef, {
                 balance: increment(-amount)
             });
 
-            // 2. إرسال الطلب للأدمن (مجموعة withdrawals)
             await addDoc(collection(db, "withdrawals"), {
                 userId: userData.id,
                 userName: userData.name,
@@ -440,6 +424,7 @@ window.submitWithdrawRequest = async function() {
     }
 }
 
+// === التنقل بين التبويبات (مصحح) ===
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => {
         el.style.display = 'none';
@@ -454,11 +439,12 @@ window.switchTab = function(tabId) {
     
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     
-    if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
-    else if(tabId === 'profile') document.querySelectorAll('.nav-item')[0].classList.add('active');
+    // ترتيب الأزرار في HTML: 0:حسابي, 1:الفريق, 2:الرئيسية, 3:المتجر, 4:المحفظة
+    if(tabId === 'profile') document.querySelectorAll('.nav-item')[0].classList.add('active');
     else if(tabId === 'team') document.querySelectorAll('.nav-item')[1].classList.add('active');
+    else if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
     else if(tabId === 'store') document.querySelectorAll('.nav-item')[3].classList.add('active');
-    // Removed 'soon' logic
+    else if(tabId === 'wallet') document.querySelectorAll('.nav-item')[4].classList.add('active');
 }
 
 window.showMsg = function(title, msg, icon) {
