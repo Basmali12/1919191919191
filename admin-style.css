@@ -90,10 +90,71 @@ body {
 .notes-table th, .notes-table td { padding: 12px; border: 1px solid #eee; text-align: right; }
 .notes-table th { background: #f4f4f4; }
 
-/* السحوبات */
-.withdrawals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-.withdraw-card { background: white; padding: 20px; border-radius: 10px; border-top: 4px solid #f1c40f; }
-.w-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; }
-.w-wallet { background: #eef; padding: 10px; border-radius: 5px; margin: 10px 0; font-family: monospace; word-break: break-all; }
-.w-actions { display: flex; gap: 5px; margin-top: 15px; }
-.w-actions button { flex: 1; padding: 8px; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.8rem; }
+/* === تصميم بطاقات الطلبات (الجديد) === */
+.withdrawals-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+    gap: 20px; 
+}
+.req-card {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    border-top: 5px solid var(--primary);
+    transition: 0.3s;
+}
+.req-card:hover { transform: translateY(-3px); }
+
+.req-header {
+    background: #f8f9fa;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+}
+.req-header h4 { margin: 0; color: var(--primary); font-size: 1.1rem; }
+.req-time { font-size: 0.8rem; color: #888; }
+
+.req-body { padding: 15px; }
+.req-row {
+    display: flex; justify-content: space-between;
+    margin-bottom: 10px; padding-bottom: 10px;
+    border-bottom: 1px dashed #eee;
+}
+.req-row:last-child { border: none; margin: 0; padding: 0; }
+.req-label { color: #777; font-size: 0.9rem; }
+.req-val { font-weight: bold; color: #333; }
+.req-val.amount { color: var(--success); font-size: 1.1rem; }
+
+.req-account-box {
+    background: #eef2f7;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    margin: 10px 0;
+    font-family: monospace;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border: 1px solid #dbe2ef;
+}
+.req-account-box:hover { background: #dfe6ed; }
+
+.req-footer {
+    padding: 15px;
+    background: #fff;
+    border-top: 1px solid #eee;
+}
+.btn-done {
+    width: 100%;
+    padding: 10px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.btn-done:hover { background: #4a1d63; }
