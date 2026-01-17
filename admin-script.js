@@ -1,5 +1,5 @@
 /* =========================================
-   Admin Panel - Glass Style Logic
+   Admin Panel - Glass Style Logic (Updated)
    ========================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -38,6 +38,7 @@ window.adminLogin = function() {
         renderPlans(); 
         renderNotes();
         listenToWithdrawals(); 
+        loadSettings(); // تحميل الإعدادات
     } else {
         document.getElementById('loginError').style.display = 'block';
     }
@@ -47,16 +48,10 @@ window.adminLogout = function() {
     location.reload();
 }
 
-// دالة التبديل المعدلة للشريط السفلي
 window.showTab = function(tabId, el) {
-    // إخفاء جميع الأقسام
     document.querySelectorAll('.tab-section').forEach(sec => sec.classList.remove('active'));
-    // إزالة التفعيل من جميع الأزرار
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    
-    // تفعيل القسم المطلوب
     document.getElementById(tabId).classList.add('active');
-    // تفعيل الزر المضغوط
     if(el) el.classList.add('active');
 }
 
@@ -116,7 +111,6 @@ window.renderPlans = async function() {
         querySnapshot.forEach((docSnap) => {
             const plan = docSnap.data();
             const planId = docSnap.id;
-            let isFull = plan.sold >= plan.stock;
             
             list.innerHTML += `
                 <div class="plan-item">
@@ -145,7 +139,7 @@ window.deletePlan = async function(planId) {
     }
 }
 
-/* === 2. إدارة المستثمرين === */
+/* === 2. إدارة المستثمرين والفريق === */
 window.searchUser = async function() {
     const id = document.getElementById('searchId').value.trim();
     if(!id) return alert("أدخل ID");
@@ -162,6 +156,12 @@ window.searchUser = async function() {
             document.getElementById('uName').innerText = currentUser.name;
             document.getElementById('uID').innerText = currentUser.id;
             document.getElementById('uBalance').value = currentUser.balance;
+            
+            // عرض معلومات القائد
+            const refText = currentUser.referredBy ? `(تابع للقائد: ${currentUser.referredBy})` : 'ليس لديه قائد';
+            document.getElementById('uReferralInfo').innerText = refText;
+            document.getElementById('uLeaderID').value = currentUser.referredBy || '';
+
         } else {
             alert('المستخدم غير موجود');
             document.getElementById('userResult').style.display = 'none';
@@ -194,6 +194,32 @@ window.saveUserChanges = async function() {
     }
 }
 
+// دالة جديدة: ربط المستخدم بفريق يدوياً
+window.linkUserToLeader = async function() {
+    if(!currentUser || !currentUser.dbId) return;
+    const leaderId = document.getElementById('uLeaderID').value.trim();
+    
+    if(!leaderId) return alert('يرجى إدخال ID القائد');
+    if(leaderId === currentUser.id) return alert('لا يمكن ربط المستخدم بنفسه');
+
+    try {
+        // التحقق من وجود القائد
+        const leaderRef = doc(db, "users", leaderId);
+        const leaderSnap = await getDoc(leaderRef);
+        
+        if(!leaderSnap.exists()) return alert('القائد غير موجود');
+
+        const userRef = doc(db, "users", currentUser.dbId);
+        await updateDoc(userRef, {
+            referredBy: leaderId
+        });
+        alert('تم ربط المستخدم بالقائد بنجاح ✅');
+    } catch(e) {
+        console.error(e);
+        alert("حدث خطأ أثناء الربط");
+    }
+}
+
 window.banUser = async function() {
     if(currentUser && currentUser.dbId) {
         if(confirm("حظر هذا المستخدم؟")) {
@@ -208,7 +234,38 @@ window.banUser = async function() {
     }
 }
 
-/* === 3. الملاحظات === */
+/* === 3. إعدادات السحب === */
+window.loadSettings = async function() {
+    try {
+        const docSnap = await getDoc(doc(db, "settings", "general"));
+        if(docSnap.exists()) {
+            const data = docSnap.data().methods || {};
+            document.getElementById('chkZain').checked = data.zaincash !== false;
+            document.getElementById('chkMaster').checked = data.mastercard !== false;
+            document.getElementById('chkFIB').checked = data.fib !== false;
+            document.getElementById('chkUSDT').checked = data.usdt !== false;
+        }
+    } catch(e) { console.log("No settings yet"); }
+}
+
+window.saveWithdrawSettings = async function() {
+    const settings = {
+        methods: {
+            zaincash: document.getElementById('chkZain').checked,
+            mastercard: document.getElementById('chkMaster').checked,
+            fib: document.getElementById('chkFIB').checked,
+            usdt: document.getElementById('chkUSDT').checked
+        }
+    };
+    try {
+        await setDoc(doc(db, "settings", "general"), settings);
+        alert('تم حفظ إعدادات السحب ✅');
+    } catch(e) {
+        alert("فشل الحفظ");
+    }
+}
+
+/* === 4. الملاحظات والطلبات === */
 window.addNote = function() {
     const name = document.getElementById('noteName').value;
     const date = document.getElementById('noteDate').value;
@@ -239,7 +296,6 @@ window.deleteNote = function(i) {
     renderNotes();
 }
 
-/* === 4. الطلبات === */
 function listenToWithdrawals() {
     const list = document.getElementById('withdrawalsList');
     const q = query(collection(db, "withdrawals"), orderBy("date", "desc"));
@@ -256,7 +312,11 @@ function listenToWithdrawals() {
             const dateObj = new Date(req.date);
             const dateStr = dateObj.toLocaleTimeString('ar-EG');
             
-            const icon = req.method === 'zaincash' ? '📱' : '💳';
+            // تحديد الأيقونة
+            let icon = '💳';
+            if(req.method === 'zaincash') icon = '📱';
+            else if(req.method === 'usdt') icon = '💲';
+            else if(req.method === 'fib') icon = '🏦';
 
             list.innerHTML += `
             <div class="req-card">
@@ -268,6 +328,10 @@ function listenToWithdrawals() {
                     <div class="req-row">
                         <span style="color:#888;">المبلغ</span>
                         <span class="req-val amount">${Number(req.amount).toLocaleString()} IQD</span>
+                    </div>
+                    <div class="req-row">
+                        <span style="color:#888;">الطريقة</span>
+                        <span>${req.method}</span>
                     </div>
                     <div class="req-account-box" onclick="copyText('${req.accountNumber}')">
                         ${req.accountNumber} <i class="fas fa-copy"></i>
