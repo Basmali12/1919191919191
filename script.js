@@ -1,5 +1,5 @@
 /* =========================================
-   Keey App - Logic V3.1 (Corrected)
+   Keey App - Logic V4.0 (Team & Withdrawals Update)
    ========================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -21,19 +21,23 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// === منطق التثبيت ===
+// === منطق التثبيت (PWA) ===
 document.addEventListener('DOMContentLoaded', () => {
     const installBtn = document.getElementById('installBtn');
-    if (window.deferredPrompt) {
-        const banner = document.getElementById('installBanner');
-        if (banner) banner.style.display = 'flex';
+    
+    // التحقق من حالة التثبيت
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        if(document.getElementById('installBanner')) document.getElementById('installBanner').style.display = 'none';
     }
+
     if (installBtn) {
         installBtn.addEventListener('click', async () => {
             if (window.deferredPrompt) {
                 window.deferredPrompt.prompt();
                 const { outcome } = await window.deferredPrompt.userChoice;
                 window.deferredPrompt = null;
+            } else {
+                alert("للأسف لا يدعم متصفحك التثبيت المباشر. يرجى استخدام خيار 'Add to Home Screen' من القائمة.");
             }
             closeInstallBanner();
         });
@@ -51,7 +55,15 @@ let userData = {
     name: 'زائر',
     balance: 0,
     plans: [],
-    lastProfitTime: 0
+    lastProfitTime: 0,
+    activeTeamCount: 0, // عدد الفريق النشط
+    teamEarnings: 0,
+    referredBy: null, // من دعاني
+    isActiveReferral: false // هل تم احتسابي كعضو نشط للقائد؟
+};
+
+let appSettings = {
+    methods: { zaincash: true, mastercard: true, fib: true, usdt: true }
 };
 
 let timerInterval;
@@ -76,12 +88,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     fetchPlansFromAdmin();
-    
+    fetchSettings(); // جلب إعدادات السحب
+
     if(window.gsap) {
         gsap.from(".app-header", {y: -50, opacity: 0, duration: 0.8});
         gsap.from(".balance-card", {scale: 0.9, opacity: 0, delay: 0.3});
     }
 });
+
+// جلب إعدادات النظام (طرق السحب)
+async function fetchSettings() {
+    try {
+        const docSnap = await getDoc(doc(db, "settings", "general"));
+        if (docSnap.exists()) {
+            appSettings = docSnap.data();
+        }
+    } catch(e) {
+        console.log("Settings defaults used");
+    }
+}
 
 async function fetchPlansFromAdmin() {
     const container = document.getElementById('dynamicPlansArea');
@@ -144,6 +169,8 @@ window.loginGoogle = function() {
                 plans: [],
                 status: 'active',
                 lastProfitTime: Date.now(),
+                activeTeamCount: 0,
+                teamEarnings: 0,
                 createdAt: new Date().toISOString()
             };
             await setDoc(doc(db, "users", userId), newUser);
@@ -168,6 +195,8 @@ window.loginGuest = async function() {
         plans: [],
         status: 'active',
         lastProfitTime: Date.now(),
+        activeTeamCount: 0,
+        teamEarnings: 0,
         createdAt: new Date().toISOString()
     };
     
@@ -296,7 +325,12 @@ function updateUI() {
     if(document.getElementById('walletBalance2')) document.getElementById('walletBalance2').innerText = userData.balance.toLocaleString() + ' IQD';
     if(document.getElementById('myInviteCode')) document.getElementById('myInviteCode').innerText = userData.id;
 
-    // تحديث قائمة "حسابي"
+    // تحديث عداد الفريق 
+    const currentTeam = userData.activeTeamCount || 0;
+    if(document.getElementById('activeTeamCounter')) document.getElementById('activeTeamCounter').innerText = `${currentTeam}/10`;
+    if(document.getElementById('teamEarnings')) document.getElementById('teamEarnings').innerText = (userData.teamEarnings || 0).toLocaleString() + ' IQD';
+
+    // تحديث قائمة الاشتراكات
     const list = document.getElementById('myPlansList');
     if(list) {
         list.innerHTML = '';
@@ -322,9 +356,40 @@ function updateUI() {
             list.innerHTML = '<li style="text-align:center; color:#999; padding:10px;">لا توجد اشتراكات نشطة</li>';
         }
     }
+
+    // إخفاء حقل كود الدعوة إذا كان المستخدم مسجلاً بالفعل تحت شخص
+    if(userData.referredBy) {
+        const inputDiv = document.getElementById('inviterCodeInput')?.parentElement?.parentElement;
+        if(inputDiv) inputDiv.innerHTML = `<p style="color:green; text-align:center;">✅ أنت عضو في فريق: ${userData.referredBy}</p>`;
+    }
 }
 
-// === الشراء المباشر ===
+// === حفظ كود الدعوة ===
+window.saveInviteCode = async function() {
+    const code = document.getElementById('inviterCodeInput').value.trim();
+    if(!code) return alert("الرجاء إدخال الكود");
+    if(code === userData.id) return alert("لا يمكنك دعوة نفسك");
+
+    // التحقق من وجود القائد
+    const leaderRef = doc(db, "users", code);
+    const leaderSnap = await getDoc(leaderRef);
+
+    if(!leaderSnap.exists()) {
+        return alert("الكود غير صحيح");
+    }
+
+    try {
+        await updateDoc(doc(db, "users", userData.id), {
+            referredBy: code
+        });
+        alert("تم الانضمام للفريق بنجاح! قم بتفعيل عداد ليتم احتسابك.");
+        location.reload();
+    } catch(e) {
+        alert("حدث خطأ");
+    }
+}
+
+// === الشراء وتفعيل منطق الإحالة (Team Logic) ===
 window.requestPlan = async function(planName, price, profit, planId) {
     if(!userData.id) return;
     
@@ -345,6 +410,7 @@ window.requestPlan = async function(planName, price, profit, planId) {
             const userRef = doc(db, "users", userData.id);
             const planRef = doc(db, "plans", planId);
 
+            // 1. خصم الرصيد وإضافة الباقة
             await updateDoc(userRef, {
                 balance: increment(-price),
                 plans: arrayUnion(newPlan)
@@ -353,6 +419,34 @@ window.requestPlan = async function(planName, price, profit, planId) {
             await updateDoc(planRef, {
                 sold: increment(1)
             });
+
+            // 2. منطق الإحالة (Referral Logic) - 10/10 Rule
+            // يتم الاحتساب فقط إذا كان المستخدم لديه قائد ولم يتم احتسابه سابقاً كعضو نشط
+            if(userData.referredBy && !userData.isActiveReferral) {
+                const leaderRef = doc(db, "users", userData.referredBy);
+                const leaderSnap = await getDoc(leaderRef);
+
+                if(leaderSnap.exists()) {
+                    const leaderData = leaderSnap.data();
+                    const currentTeamSize = leaderData.activeTeamCount || 0;
+
+                    // إذا كان فريق القائد لم يكتمل (أقل من 10)
+                    if(currentTeamSize < 10) {
+                        const reward = price * 0.05; // 5% عمولة
+
+                        await updateDoc(leaderRef, {
+                            balance: increment(reward),
+                            activeTeamCount: increment(1),
+                            teamEarnings: increment(reward)
+                        });
+
+                        // تحديث المستخدم الحالي لكي لا يحتسب مرة أخرى
+                        await updateDoc(userRef, {
+                            isActiveReferral: true
+                        });
+                    }
+                }
+            }
 
             window.showMsg("تم الشراء", "تم تفعيل العداد بنجاح وبدأ احتساب الأرباح", "✅");
             window.switchTab('profile');
@@ -376,6 +470,20 @@ window.showWithdraw = function() {
         return window.showMsg("تنبيه", "يجب أن يكون رصيدك 7000 IQD أو أكثر لتتمكن من السحب.", "🚫");
     }
     
+    // إخفاء طرق السحب بناء على الإعدادات
+    const select = document.getElementById('wMethod');
+    if(appSettings && appSettings.methods) {
+        for(let opt of select.options) {
+            if(appSettings.methods[opt.value] === false) {
+                opt.style.display = 'none';
+                opt.disabled = true;
+            } else {
+                opt.style.display = 'block';
+                opt.disabled = false;
+            }
+        }
+    }
+
     document.getElementById('wTotalBalance').innerText = userData.balance.toLocaleString();
     document.getElementById('wAmount').value = '';
     document.getElementById('wAccount').value = '';
@@ -424,7 +532,7 @@ window.submitWithdrawRequest = async function() {
     }
 }
 
-// === التنقل بين التبويبات (مصحح) ===
+// === التنقل بين التبويبات ===
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => {
         el.style.display = 'none';
@@ -434,16 +542,17 @@ window.switchTab = function(tabId) {
     if(target) {
         target.style.display = 'block';
         target.classList.add('active');
-        if(window.gsap) gsap.fromTo(target, {opacity: 0, y: 10}, {opacity: 1, y: 0, duration: 0.3});
+        if(window.gsap && tabId !== 'reels') gsap.fromTo(target, {opacity: 0, y: 10}, {opacity: 1, y: 0, duration: 0.3});
     }
     
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     
-    // ترتيب الأزرار في HTML: 0:حسابي, 1:الفريق, 2:الرئيسية, 3:المتجر, 4:المحفظة
+    // ترتيب الأزرار الجديد:
+    // 0:حسابي, 1:الفريق, 2:الرئيسية, 3:Reels, 4:المحفظة
     if(tabId === 'profile') document.querySelectorAll('.nav-item')[0].classList.add('active');
     else if(tabId === 'team') document.querySelectorAll('.nav-item')[1].classList.add('active');
     else if(tabId === 'home') document.querySelector('.center-btn').classList.add('active');
-    else if(tabId === 'store') document.querySelectorAll('.nav-item')[3].classList.add('active');
+    else if(tabId === 'reels') document.querySelectorAll('.nav-item')[3].classList.add('active');
     else if(tabId === 'wallet') document.querySelectorAll('.nav-item')[4].classList.add('active');
 }
 
