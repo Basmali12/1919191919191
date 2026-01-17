@@ -46,6 +46,20 @@
                 </div>
             </section>
 
+            <section id="settings" class="tab-section">
+                <h2>إعدادات النظام</h2>
+                <div class="glass-card">
+                    <h3>طرق السحب المتاحة</h3>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <label><input type="checkbox" id="chkZain"> زين كاش (ZainCash)</label>
+                        <label><input type="checkbox" id="chkMaster"> ماستر كارد (MasterCard)</label>
+                        <label><input type="checkbox" id="chkFIB"> مصرف FIB</label>
+                        <label><input type="checkbox" id="chkUSDT"> عملة رقمية (USDT)</label>
+                    </div>
+                    <button onclick="saveWithdrawSettings()" class="btn-glass-primary" style="margin-top:15px; width:100%;">حفظ الإعدادات</button>
+                </div>
+            </section>
+
             <section id="investors" class="tab-section">
                 <h2>المستثمرين</h2>
                 <div class="search-box">
@@ -58,6 +72,7 @@
                         <i class="fas fa-user-circle" style="font-size:3rem; color:var(--primary-cyan);"></i>
                         <h3 id="uName" style="margin:5px 0;">---</h3>
                         <span id="uID" style="background:#eee; padding:2px 8px; border-radius:10px; font-size:0.8rem;">---</span>
+                        <div id="uReferralInfo" style="margin-top:5px; font-size:0.8rem; color:gray;"></div>
                     </div>
                     
                     <div style="background:rgba(255,255,255,0.5); padding:10px; border-radius:10px; margin-bottom:15px;">
@@ -69,8 +84,16 @@
                         </div>
                     </div>
 
+                    <div style="background:rgba(255,255,255,0.5); padding:10px; border-radius:10px; margin-bottom:15px;">
+                        <label>ربط بفريق (ID القائد):</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="text" id="uLeaderID" placeholder="ID القائد" style="flex:1; padding:5px; border-radius:5px; border:none;">
+                            <button onclick="linkUserToLeader()" class="btn-glass-primary">ربط</button>
+                        </div>
+                    </div>
+
                     <div style="display:flex; gap:10px;">
-                        <button onclick="saveUserChanges()" class="btn-glass-primary" style="flex:1;">حفظ</button>
+                        <button onclick="saveUserChanges()" class="btn-glass-primary" style="flex:1;">حفظ الرصيد</button>
                         <button onclick="banUser()" style="flex:1; background:var(--primary-red); color:white; border:none; border-radius:50px; cursor:pointer;">حظر</button>
                     </div>
                 </div>
@@ -110,6 +133,9 @@
         </div>
         <div class="nav-item" onclick="showTab('investors', this)">
             <i class="fas fa-users"></i> <span>المستثمرين</span>
+        </div>
+        <div class="nav-item" onclick="showTab('settings', this)">
+            <i class="fas fa-cogs"></i> <span>الإعدادات</span>
         </div>
         <div class="nav-item" onclick="showTab('notes', this)">
             <i class="fas fa-sticky-note"></i> <span>مذكرة</span>
