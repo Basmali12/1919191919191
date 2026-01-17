@@ -34,7 +34,7 @@
 
     <div id="installBanner" class="install-modal">
         <div class="install-content">
-            <div class="install-icon"><img src="https://j.top4top.io/p_3667oa2f41.jpg" style="width:60px; border-radius:10px;"></div>
+            <div class="install-icon"><img src="https://e.top4top.io/p_3669xvp3m1.jpg" style="width:60px; border-radius:10px;"></div>
             <h3>تثبيت تطبيق Keey</h3>
             <p>لتجربة أفضل وسرعة أعلى، قم بتثبيت التطبيق على جهازك.</p>
             <button id="installBtn" class="install-btn">تثبيت الآن</button>
@@ -61,12 +61,14 @@
 
             <label style="display:block; margin-top:10px;">طريقة السحب:</label>
             <select id="wMethod" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:5px;">
-                <option value="zaincash">زين كاش (ZainCash)</option>
-                <option value="mastercard">ماستر كارد (MasterCard)</option>
+                <option value="zaincash" class="method-opt">زين كاش (ZainCash)</option>
+                <option value="mastercard" class="method-opt">ماستر كارد (MasterCard)</option>
+                <option value="fib" class="method-opt">FIB</option>
+                <option value="usdt" class="method-opt">USDT (TRC20)</option>
             </select>
 
-            <label style="display:block; margin-top:10px;">رقم المحفظة / البطاقة:</label>
-            <input type="text" id="wAccount" style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:5px;" placeholder="رقم الهاتف أو رقم البطاقة">
+            <label style="display:block; margin-top:10px;">رقم المحفظة / البطاقة / العنوان:</label>
+            <input type="text" id="wAccount" style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:5px;" placeholder="اكتب الرقم أو العنوان هنا">
 
             <button onclick="submitWithdrawRequest()" style="background:var(--primary); width:100%;">تأكيد السحب</button>
             <button onclick="document.getElementById('withdrawModal').style.display='none'" style="background:#555; width:100%; margin-top:10px;">إلغاء</button>
@@ -127,6 +129,34 @@
             </div>
         </section>
 
+        <section id="team" class="tab-content">
+            <div style="padding:20px;">
+                <h2 style="color:var(--primary);">إدارة الفريق</h2>
+                
+                <div class="invite-card">
+                    <i class="fas fa-crown" style="font-size:2rem; color:gold; margin-bottom:10px;"></i>
+                    <h3>حالة الفريق</h3>
+                    <div style="font-size:2.5rem; font-weight:bold; color:var(--primary);" id="activeTeamCounter">0/10</div>
+                    <p style="font-size:0.9rem; color:#666;">الأعضاء النشطين فقط</p>
+                    
+                    <div style="background:#f9f9f9; padding:10px; border-radius:10px; margin-top:15px; border:1px dashed var(--primary);">
+                        <p style="font-size:0.8rem; margin:0;">احصل على 5% (5,000 IQD تقريباً) عن كل عضو يقوم بتفعيل عداد.</p>
+                        <p style="font-size:0.8rem; margin:5px 0 0 0; color:red;">الحد الأقصى 10 أعضاء نشطين</p>
+                    </div>
+                </div>
+
+                <div class="invite-card" style="margin-top:10px;">
+                    <h3>كود الدعوة الخاص بك</h3>
+                    <div class="invite-link-text" id="myInviteCode">LOADING...</div>
+                    <button onclick="copyInviteLink()">نسخ الكود</button>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                    <div style="text-align:center; flex:1;"><h4>أرباح الفريق</h4><h2 style="color:green" id="teamEarnings">0</h2></div>
+                </div>
+            </div>
+        </section>
+
         <section id="wallet" class="tab-content">
             <div style="padding:20px;">
                 <h2 style="color:var(--primary);">المحفظة</h2>
@@ -156,24 +186,23 @@
             </div>
         </section>
 
-        <section id="team" class="tab-content">
-            <div style="padding:20px;">
-                <h2 style="color:var(--primary);">الفريق</h2>
-                <div class="invite-card">
-                    <h3>كود الدعوة</h3>
-                    <div class="invite-link-text" id="myInviteCode">LOADING...</div>
-                    <button onclick="copyInviteLink()">نسخ</button>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-top:20px;">
-                    <div style="text-align:center;"><h4>عدد الفريق</h4><h2 id="teamCount">0</h2></div>
-                    <div style="text-align:center;"><h4>الأرباح</h4><h2 style="color:green">0</h2></div>
-                </div>
-            </div>
+        <section id="reels" class="tab-content" style="padding:0; height:calc(100vh - 80px); overflow:hidden;">
+            <iframe src="https://basmali12.github.io/DDDDDDD/" style="width:100%; height:100%; border:none;"></iframe>
         </section>
 
         <section id="profile" class="tab-content">
             <div style="padding:20px;">
                 <h2 style="color:var(--primary);">حسابي</h2>
+                
+                <div style="background:white; padding:15px; border-radius:15px; margin-bottom:20px; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
+                    <h4 style="margin-top:0;">من الذي دعاك؟</h4>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="inviterCodeInput" placeholder="أدخل كود صديقك هنا" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:5px;">
+                        <button onclick="saveInviteCode()" style="width:auto; background:var(--accent);">تأكيد</button>
+                    </div>
+                    <p style="font-size:0.75rem; color:#777; margin-bottom:0;">اختياري: أدخل كود القائد للانضمام لفريقه.</p>
+                </div>
+
                 <div class="telegram-group">
                     <a href="https://t.me/keey1001" target="_blank" class="telegram-btn tg-channel">القناة</a>
                     <a href="https://t.me/keey1001" target="_blank" class="telegram-btn tg-chat">الدردشة</a>
@@ -192,13 +221,15 @@
     <nav class="bottom-nav">
         <div class="nav-item" onclick="switchTab('profile')"><i class="fas fa-user"></i> <span>حسابي</span></div>
         <div class="nav-item" onclick="switchTab('team')"><i class="fas fa-users"></i> <span>الفريق</span></div>
-        <div class="nav-item active center-btn" onclick="switchTab('home')"><div class="floating-home"><i class="fas fa-home"></i></div></div>
-        <div class="nav-item" onclick="switchTab('store')"><i class="fas fa-shopping-bag"></i> <span>المتجر</span></div>
+        <div class="nav-item center-btn active" onclick="switchTab('home')"><div class="floating-home"><i class="fas fa-home"></i></div></div>
+        <div class="nav-item" onclick="switchTab('reels')"><i class="fas fa-play-circle"></i> <span>Reels</span></div>
         <div class="nav-item" onclick="switchTab('wallet')"><i class="fas fa-wallet"></i> <span>المحفظة</span></div>
     </nav>
 
     <style>
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        /* تعديل لعرض 5 عناصر حول الزر العائم */
+        .bottom-nav { justify-content: space-evenly; }
     </style>
 
     <script src="script.js" type="module"></script>
